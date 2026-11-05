@@ -135,6 +135,24 @@ set HF_ENDPOINT=https://hf-mirror.com
 
 **不想下载也行**：配置里把 `embeddingEnabled` 设为 `false`，只留字面检索——搜得笨一点，但零下载、零依赖。
 
+### 装依赖时 `sharp` 报证书错误
+
+`npm install` 会顺带去下 `sharp` 的二进制（libvips），走代理时容易 `SSL certificate` 报错。用：
+
+```bash
+npm install --ignore-scripts
+```
+
+插件本身不用 `sharp`（它只是 `@xenova/transformers` 的间接依赖，不处理图片用不到），所以跳过脚本没关系。
+
+### `pnpm install --offline` 失败
+
+profile 里有从 GitHub 直接拉的包（比如 `heybox`），它们不在本地 store 里，`--offline` 会找不到。用：
+
+```bash
+pnpm install --prefer-offline
+```
+
 ### 搜索老是回「没找到可靠记忆」
 
 闸门可能太严。`minRelevanceScore` 默认 `0.5`（在 bge-small + 500 块语料上标定的），可以调到 `0.45` 试试；代价是更可能返回弱相关的块。
