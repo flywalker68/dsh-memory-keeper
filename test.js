@@ -609,3 +609,17 @@ test('单块记忆库也能搜出来（IDF 下限）', () => {
     assert.ok(r.length >= 1, '单块库应该能搜到，不该返回空')
   } finally { clean(cfg) }
 })
+
+test('beforeDate 过滤掉未来的块（词面路径）', () => {
+  const cfg = makeCfg()
+  try {
+    writeFileSync(join(cfg.memoryDir, '记忆.md'),
+      '- **2026-10-01** · 项目代号蓝鲸在码头\n- **2026-12-01** · 项目代号蓝鲸在仓库\n')
+    const index = buildIndex([cfg.memoryDir])
+    const all = searchMemory(index, '项目代号蓝鲸', 5)
+    assert.equal(all.length, 2, '不过滤时两块都该在')
+    const filtered = searchMemory(index, '项目代号蓝鲸', 5, { beforeDate: '2026-11-01' })
+    assert.equal(filtered.length, 1, '过掉 11-01 之后的块')
+    assert.ok(String(filtered[0].date) <= '2026-11-01')
+  } finally { clean(cfg) }
+})
