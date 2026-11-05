@@ -140,15 +140,41 @@ set HF_ENDPOINT=https://hf-mirror.com
 
 **不想下载也行**：配置里把 `embeddingEnabled` 设为 `false`，只留字面检索——搜得笨一点，但零下载、零依赖。
 
-### 装依赖时 `sharp` 报证书错误
+### 装依赖时 `sharp` 报证书错误 / 装完向量检索挂了
 
-`npm install` 会顺带去下 `sharp` 的二进制（libvips），走代理时容易 `SSL certificate` 报错。用：
+`npm install` 会顺带下 `sharp` 的二进制（libvips），走代理时容易 `SSL certificate` 报错。
+
+**别直接 `npm install --ignore-scripts` 就完事**。那样 sharp 只有源码、没有二进制，而 `@xenova/transformers` 的 node 入口**会 require 它**，结果是：
+
+```
+向量检索失败，回退词面：Cannot find module 'sharp-win32-x64.node'
+```
+
+——**向量检索整个挂掉，只剩字面检索**，而且不影响启动，很难发现。
+
+正确做法是装完再补两下：
 
 ```bash
 npm install --ignore-scripts
+npm install-scripts approve sharp   # npm 会拦 install 脚本，先放行
+npm rebuild sharp                   # 拉 libvips 二进制
 ```
 
-插件本身不用 `sharp`（它只是 `@xenova/transformers` 的间接依赖，不处理图片用不到），所以跳过脚本没关系。
+国内网络记得指定镜像，不然 libvips 从 GitHub 拉会报证书错：
+
+```bash
+npm config set registry https://registry.npmmirror.com
+npm_config_sharp_binary_host=https://npmmirror.com/mirrors/sharp
+npm_config_sharp_libvips_binary_host=https://npmmirror.com/mirrors/sharp-libvips
+```
+
+验证装好了：
+
+```bash
+node -e "import('@xenova/transformers').then(async m => { const p = await m.pipeline('feature-extraction','Xenova/bge-small-zh-v1.5'); const o = await p(['测试']); console.log('OK', o.data.length) })"
+```
+
+出 `OK 512` 就成了；看到 `Cannot find module 'sharp...node'` 就是没补好。
 
 ### `pnpm install --offline` 失败
 
