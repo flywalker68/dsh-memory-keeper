@@ -176,6 +176,15 @@ node -e "import('@xenova/transformers').then(async m => { const p = await m.pipe
 
 出 `OK 512` 就成了；看到 `Cannot find module 'sharp...node'` 就是没补好。
 
+**日常怎么自查**：`memory_search` 返回的头会带标记——
+
+```
+检索「…」：3 条（向量+词面）   ← 向量在工作
+检索「…」：3 条                ← 只有词面，向量挂了
+```
+
+**没有「（向量+词面）」就等于向量没生效**，回去看这一节。
+
 ### `pnpm install --offline` 失败
 
 profile 里有从 GitHub 直接拉的包（比如 `heybox`），它们不在本地 store 里，`--offline` 会找不到。用：
