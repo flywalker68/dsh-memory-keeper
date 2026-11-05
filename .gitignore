@@ -1,0 +1,34 @@
+# 依赖与模型：不进仓库（首次运行自动装/自动下载）
+node_modules/
+models/
+
+# 备份
+_bak/
+
+# 临时实验脚本（自己跑数用的，不是插件功能）
+_*.mjs
+_*.txt
+_eval*.mjs
+_test*.mjs
+_verify*.mjs
+_measure*.mjs
+_gen*.mjs
+_preview*.mjs
+
+# 开发时用过的临时工具
+analyze-tokens.js
+asar-dump.js
+asar-grep.js
+asar-read.js
+dump-events.js
+list-tools.js
+preview-search.js
+preview.js
+prune-once.mjs
+smoke.js
+
+# 日志与本地配置
+*.log
+.local/
+.DS_Store
+Thumbs.db

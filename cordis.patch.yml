@@ -1,0 +1,4 @@
+# dsh-memory-keeper: mounted by the plugin manager (insert list)
+- insert:
+    - id: memory-keeper
+      name: 'dsh-memory-keeper'
