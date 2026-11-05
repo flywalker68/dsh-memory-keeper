@@ -1,4 +1,4 @@
-// dsh-memory-keeper 单元测试：状态计算 + 人设备份写入
+﻿// dsh-memory-keeper 单元测试：状态计算 + 人设备份写入
 // 跑法：node test.js
 
 import { test } from 'node:test'
@@ -11,7 +11,7 @@ import {
   scanHandnotes, scanStale, buildStatus, backupAndWrite, scanFactConflicts, scanNotes, oldestRelation,
   pruneBackups,
 } from './lib/state.js'
-import { grams, buildIndex, searchMemory, loadOrBuild, bumpMentions, mentionCount, mentionKey, bumpByUserText, chatChunks, readChatChunks, markSeen, resolveQueryDate, readChatDay, shiftDate } from './lib/search.js'
+import { grams, buildIndex, searchMemory, loadOrBuild, bumpMentions, mentionCount, mentionKey, bumpByUserText, chatChunks, readChatChunks, markSeen, resolveQueryDate, readChatDay, shiftDate, eligibleChunks } from './lib/search.js'
 
 const makeCfg = () => {
   const root = mkdtempSync(join(tmpdir(), 'mk-'))
@@ -622,4 +622,16 @@ test('beforeDate 过滤掉未来的块（词面路径）', () => {
     assert.equal(filtered.length, 1, '过掉 11-01 之后的块')
     assert.ok(String(filtered[0].date) <= '2026-11-01')
   } finally { clean(cfg) }
+})
+
+test('eligibleChunks：时间窗口的唯一实现（两路共用）', () => {
+  const chunks = [
+    { text: '十月的事', date: '2026-10-01' },
+    { text: '十二月的事', date: '2026-12-01' },
+    { text: '没写日期的事' },
+  ]
+  assert.equal(eligibleChunks(chunks, null).length, 3, '不传 beforeDate = 不过滤')
+  const f = eligibleChunks(chunks, '2026-11-01')
+  assert.equal(f.length, 2, '未来块被排除、没日期的块保留')
+  assert.ok(!f.some((x) => x.date === '2026-12-01'), '12-01 不该在候选里')
 })
