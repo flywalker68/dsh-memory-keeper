@@ -598,3 +598,14 @@ test('mentionKey 超长文本在标点处截断，不切半个词', () => {
   assert.ok(k.includes('第一条鱼。'))
   assert.ok(!k.endsWith('人…'))
 })
+
+test('单块记忆库也能搜出来（IDF 下限）', () => {
+  const cfg = makeCfg()
+  try {
+    writeFileSync(join(cfg.memoryDir, '记忆.md'), '- 用户喜欢喝无糖美式，下午三点后不碰咖啡\n')
+    const index = buildIndex([cfg.memoryDir])
+    assert.equal(index.chunks.length, 1)
+    const r = searchMemory(index, '无糖美式', 5)
+    assert.ok(r.length >= 1, '单块库应该能搜到，不该返回空')
+  } finally { clean(cfg) }
+})
