@@ -13,7 +13,12 @@
 - 然后在那个 profile 目录跑 `pnpm install`，重启 DSH
 - **验证**：`~/.dsh/memory-keeper.log` 出现 `已注册工具 memory_search`
 - **记忆库**：`~/.dsh/memory/` 下放 `.md` 文件即可，格式见 [`examples/记忆格式说明.md`](examples/记忆格式说明.md)
-- **配置**：至少把 `workspace` 填成绝对路径（留空会用 `process.cwd()`，未验证是否等于工作区）
+- **配置**：`workspace` **必须填绝对路径**。留空会用 `process.cwd()`，**实测在 DSH 里那是 profile 目录、不是工作区**——后果是「日记 0 篇、搜不到东西」，而且不报错。配置写在 `~/.dsh/profiles/<profile>/cordis.patch.yml`：
+  ```yaml
+  - id: memory-keeper
+    config:
+      workspace: 'D:\你的\工作区'
+  ```
 - **不需要 API key**；首次检索会下 24 MB 模型，或把 `embeddingEnabled` 设 `false` 跳过
 
 ## 开始使用
@@ -236,7 +241,7 @@ pnpm install --prefer-offline
 |---|---|
 | **`pnpm install` 是否必须** | profile 目录里有 `pnpm-lock.yaml`，据此推断要用 pnpm；不确定 `npm install` 行不行 |
 | **`link:` 的路径格式** | 作者本机是 `link:D:/deepseek harness/工作区/.dev/memory-keeper`（正斜杠、带空格）；Windows 反斜杠没试过 |
-| **`workspace` 留空时的行为** | 代码里用 `process.cwd()`，但 DSH 加载插件时 cwd 是不是工作区**没确认**。**稳妥做法：直接填绝对路径** |
+| ~~`workspace` 留空时的行为~~ **已确认（坏消息）** | 实测 `process.cwd()` 在 DSH 里是 **profile 目录**，不是工作区 → 日记 0 篇、搜不到东西且不报错。**必须显式填绝对路径**；代码现在会打 WARN |
 | **日志路径** | 作者本机是 `~/.dsh/memory-keeper.log`；不同系统或配置可能不同 |
 | **关掉 `embeddingEnabled` 的效果** | 逻辑上退化成纯字面检索，**没实测过检索质量** |
 | **面板（client）在 Web UI 里的样子** | 代码在 `client/client.js`，但没在其他人的 DSH 版本上试过 |
