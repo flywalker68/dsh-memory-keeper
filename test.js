@@ -11,7 +11,7 @@ import {
   scanHandnotes, scanStale, buildStatus, backupAndWrite, scanFactConflicts, scanNotes, oldestRelation,
   pruneBackups,
 } from './lib/state.js'
-import { grams, buildIndex, searchMemory, loadOrBuild, bumpMentions, mentionCount, mentionKey, bumpByUserText, chatChunks, readChatChunks, markSeen, resolveQueryDate, readChatDay, shiftDate, eligibleChunks, enrichResults, formatResultLines, lineDate, lineAllowed } from './lib/search.js'
+import { grams, buildIndex, searchMemory, loadOrBuild, bumpMentions, mentionCount, mentionKey, bumpByUserText, chatChunks, readChatChunks, markSeen, resolveQueryDate, readChatDay, shiftDate, eligibleChunks, enrichResults, formatResultLines, lineDate, lineAllowed, clampTunables } from './lib/search.js'
 
 const makeCfg = () => {
   const root = mkdtempSync(join(tmpdir(), 'mk-'))
@@ -759,4 +759,13 @@ test('contextLines=0 不附上下文（省 token 时用）', () => {
     assert.equal(results[0].context, undefined, '关掉就不该带上下文')
     assert.equal(results[0].full, '- **2026-05-10** · 命中的这一行', '正文补全照旧（它不随 contextLines 关）')
   } finally { clean(cfg) }
+})
+
+test('clampTunables：面板值越界夹回，坏值回落默认', () => {
+  const d = { contextLines: 1, resultChars: 400 }
+  assert.deepEqual(clampTunables({}, d), { contextLines: 1, resultChars: 400 }, '没存过 = 用配置默认')
+  assert.deepEqual(clampTunables({ contextLines: 9, resultChars: 99999 }, d), { contextLines: 5, resultChars: 2000 }, '上限夹住')
+  assert.deepEqual(clampTunables({ contextLines: -3, resultChars: 1 }, d), { contextLines: 0, resultChars: 80 }, '下限夹住')
+  assert.deepEqual(clampTunables({ contextLines: 'abc', resultChars: null }, d), { contextLines: 1, resultChars: 400 }, '坏值回落')
+  assert.deepEqual(clampTunables({ contextLines: 0 }, d), { contextLines: 0, resultChars: 400 }, '0 是有效值，不能被当成空')
 })

@@ -71,6 +71,8 @@ window.__ModuleLoader__.load({
       const [results, setResults] = useState(null)
       const [searching, setSearching] = useState(false)
       const [at, setAt] = useState(0)
+      const [tun, setTun] = useState(null)
+      const [tunMsg, setTunMsg] = useState('')
 
       const load = () => {
         fetch(API + '/state', { cache: 'no-store' })
@@ -80,7 +82,26 @@ window.__ModuleLoader__.load({
       }
       // 打开面板时跑一次就够：以前每 5 秒轮询，等于面板开着就一直重建状态卡（扫目录、读 7 天导出）。
       // 要看最新的，点右上角「↻ 刷新」。
-      useEffect(() => { load() }, [])
+      const loadTun = () => {
+        fetch(API + '/tunables', { cache: 'no-store' })
+          .then(r => r.json())
+          .then(j => { if (j && j.ok) setTun(j) })
+          .catch(() => { /* 面板 API 没起来就静默，不影响主功能 */ })
+      }
+      const saveTun = (patch) => {
+        fetch(API + '/tunables', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(patch),
+        })
+          .then(r => r.json())
+          .then(j => {
+            if (j && j.ok) { setTun(t => ({ ...(t || {}), ...j })); setTunMsg('已保存，下次检索生效') }
+            else setTunMsg('保存失败：' + ((j && j.error) || '未知错误'))
+          })
+          .catch(e => setTunMsg('保存失败：' + e.message))
+      }
+      useEffect(() => { load(); loadTun() }, [])
 
       const doSearch = () => {
         const query = q.trim()
@@ -138,6 +159,36 @@ window.__ModuleLoader__.load({
           h('div', { className: 'mk-card' },
             h('h3', null, '统计'),
             ...stats.map(([k, v], i) => h('div', { className: 'mk-row', key: i }, h('span', { className: 'mk-k' }, k), h('span', { className: 'mk-v' }, v))),
+          ),
+          h('div', { className: 'mk-card' },
+            h('h3', null, '返回层（省 token）'),
+            h('div', { className: 'mk-muted', style: { marginBottom: 12, fontSize: 12 } },
+              '只影响「给模型看多少」，不动检索与打分；拖完即存，下次检索就按新值。'),
+            h('div', { style: { display: 'flex', justifyContent: 'space-between' } },
+              h('span', { className: 'mk-k' }, '上下文行数'),
+              h('span', { className: 'mk-v' }, `${tun ? tun.effective.contextLines : '—'} 行（0 = 不附，最省）`)),
+            h('input', {
+              type: 'range', min: 0, max: 3, step: 1, style: { width: '100%' },
+              value: tun ? tun.effective.contextLines : 0,
+              disabled: !tun,
+              onChange: (e) => setTun(t => ({ ...t, effective: { ...t.effective, contextLines: Number(e.target.value) } })),
+              onMouseUp: (e) => saveTun({ contextLines: Number(e.target.value) }),
+              onTouchEnd: (e) => saveTun({ contextLines: Number(e.target.value) }),
+            }),
+            h('div', { style: { display: 'flex', justifyContent: 'space-between', marginTop: 12 } },
+              h('span', { className: 'mk-k' }, '每条字数上限'),
+              h('span', { className: 'mk-v' }, `${tun ? tun.effective.resultChars : '—'} 字`)),
+            h('input', {
+              type: 'range', min: 80, max: 1000, step: 20, style: { width: '100%' },
+              value: tun ? tun.effective.resultChars : 400,
+              disabled: !tun,
+              onChange: (e) => setTun(t => ({ ...t, effective: { ...t.effective, resultChars: Number(e.target.value) } })),
+              onMouseUp: (e) => saveTun({ resultChars: Number(e.target.value) }),
+              onTouchEnd: (e) => saveTun({ resultChars: Number(e.target.value) }),
+            }),
+            h('div', { className: 'mk-muted', style: { marginTop: 10, fontSize: 12 } },
+              '默认 1 行 / 400 字：一次检索约多 1.3K tokens（≈¥0.003）。嫌贵把上下文调 0，正文补全仍保留。'),
+            tunMsg ? h('div', { className: 'mk-muted', style: { marginTop: 6, fontSize: 12 } }, tunMsg) : null,
           ),
           h('div', { className: 'mk-card' },
             h('h3', null, '搜索记忆'),
