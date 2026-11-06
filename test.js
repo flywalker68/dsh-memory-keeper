@@ -778,7 +778,7 @@ test('memory_search 的补全顺序：tun 与 enrichResults 都在 lines 之前'
   const decl = src.indexOf('const tun = effectiveTun()')
   const useChars = src.indexOf('maxChars: tun.resultChars')
   const useCtx = src.indexOf('contextLines: tun.contextLines')
-  const enrich = src.indexOf('enrichResults(shown, beforeDate')
+  const enrich = src.indexOf('enrichResults(results, beforeDate')
   const lines = src.indexOf('const lines = fallback')
   assert.ok(decl > 0, '找不到 tun 的声明，检查是不是改名了')
   assert.ok(useChars > decl && useCtx > decl, 'tun 必须先声明再使用，否则 TDZ')
