@@ -744,3 +744,19 @@ test('readChatChunks 不再把长消息截到 300（只影响 chat_search）', (
     assert.ok(chunks[0].text.includes(longMsg), '长消息应完整保留，不能再被 300 拦腰砍断')
   } finally { clean(cfg) }
 })
+
+test('contextLines=0 不附上下文（省 token 时用）', () => {
+  const cfg = makeCfg()
+  try {
+    const file = join(cfg.memoryDir, 'c0.md')
+    writeFileSync(file, [
+      '- **2026-01-01** · 前一行',
+      '- **2026-05-10** · 命中的这一行',
+      '- **2026-03-01** · 后一行',
+    ].join('\n'), 'utf8')
+    const results = [{ file, line: 2, text: '命中的这一行', score: 1 }]
+    enrichResults(results, null, { contextLines: 0 })
+    assert.equal(results[0].context, undefined, '关掉就不该带上下文')
+    assert.equal(results[0].full, '- **2026-05-10** · 命中的这一行', '正文补全照旧（它不随 contextLines 关）')
+  } finally { clean(cfg) }
+})

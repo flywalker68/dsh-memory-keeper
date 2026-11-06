@@ -289,6 +289,10 @@ node scripts/import-history.mjs ./histories ./memory
 | `minRelevanceScore` | `0.5` | **最低分闸门**：向量最高余弦低于它就判「没有可靠记忆」，不硬塞弱相关块 |
 | `dateBoostEnabled` | `true` | 查询带时间词时按日期加分（只影响排序） |
 | `dateBoost` | `0.1` | 日期加分幅度（0.1 = 排序分 ×1.1） |
+| `resultChars` | `400` | 返回时每条给模型看的字数上限（命中会补整行）。**只控显示预算，不影响检索与打分** |
+| `contextLines` | `1` | 命中后附几行上下文（前/后各 N 行，过时间窗口）。`0` = 不附，**最省 token** |
+
+> `resultChars` / `contextLines` 是给 token 花费留的旋钮：默认值下每次检索比旧版多约 1.3K tokens（约 ¥0.003）；嫌贵就 `contextLines: 0`，正文补全仍保留。
 
 > `minRelevanceScore` 是在 `bge-small-zh-v1.5` + 500 块语料上标定的：无答案查询最高 0.447、有答案最低 0.565。换模型或语料大改后要重新标定。
 
