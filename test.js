@@ -769,3 +769,19 @@ test('clampTunables：面板值越界夹回，坏值回落默认', () => {
   assert.deepEqual(clampTunables({ contextLines: 'abc', resultChars: null }, d), { contextLines: 1, resultChars: 400 }, '坏值回落')
   assert.deepEqual(clampTunables({ contextLines: 0 }, d), { contextLines: 0, resultChars: 400 }, '0 是有效值，不能被当成空')
 })
+
+// 纯函数测试管不到工具 execute 层——这里补一条静态顺序检查。
+// 起因：memory_search 里 `tun` 曾被声明在 lines 之后，一调用就 TDZ 崩，
+// 而当时 56 个纯函数测试全绿，什么都没抓到。
+test('memory_search 的补全顺序：tun 与 enrichResults 都在 lines 之前', () => {
+  const src = readFileSync(new URL('./lib/index.js', import.meta.url), 'utf8')
+  const decl = src.indexOf('const tun = effectiveTun()')
+  const useChars = src.indexOf('maxChars: tun.resultChars')
+  const useCtx = src.indexOf('contextLines: tun.contextLines')
+  const enrich = src.indexOf('enrichResults(results, beforeDate')
+  const lines = src.indexOf('const lines = fallback')
+  assert.ok(decl > 0, '找不到 tun 的声明，检查是不是改名了')
+  assert.ok(useChars > decl && useCtx > decl, 'tun 必须先声明再使用，否则 TDZ')
+  assert.ok(enrich > 0 && lines > enrich, 'enrichResults 必须在拼 lines 之前，否则渲染的是旧内容')
+  assert.ok(decl < lines, 'tun 在 lines 之前声明')
+})
