@@ -1,4 +1,4 @@
-﻿// dsh-memory-keeper 单元测试：状态计算 + 人设备份写入
+// dsh-memory-keeper 单元测试：状态计算 + 人设备份写入
 // 跑法：node test.js
 
 import { test } from 'node:test'
@@ -11,7 +11,7 @@ import {
   scanHandnotes, scanStale, buildStatus, backupAndWrite, scanFactConflicts, scanNotes, oldestRelation,
   pruneBackups,
 } from './lib/state.js'
-import { grams, buildIndex, searchMemory, loadOrBuild, bumpMentions, mentionCount, mentionKey, bumpByUserText, chatChunks, readChatChunks, markSeen, resolveQueryDate, readChatDay, shiftDate, eligibleChunks } from './lib/search.js'
+import { grams, buildIndex, searchMemory, loadOrBuild, bumpMentions, mentionCount, mentionKey, bumpByUserText, chatChunks, readChatChunks, markSeen, resolveQueryDate, readChatDay, shiftDate, eligibleChunks, enrichResults, formatResultLines, lineDate, lineAllowed } from './lib/search.js'
 
 const makeCfg = () => {
   const root = mkdtempSync(join(tmpdir(), 'mk-'))
@@ -634,4 +634,113 @@ test('eligibleChunks：时间窗口的唯一实现（两路共用）', () => {
   const f = eligibleChunks(chunks, '2026-11-01')
   assert.equal(f.length, 2, '未来块被排除、没日期的块保留')
   assert.ok(!f.some((x) => x.date === '2026-12-01'), '12-01 不该在候选里')
+})
+
+// ── 返回层补全（A/B/C）：只改「找到之后给多少」，不碰检索 ──────────
+// 这几条保护的是「索引/排序不变、返回变全」。索引链路上任何一样被动到，
+// chunkKey（md5(text)）就会失效、向量全废，所以 text 必须原样。
+
+test('lineDate / lineAllowed：没日期的行保留，晚于 beforeDate 的过滤', () => {
+  assert.equal(lineDate('- **2026-11-05** · 正文'), '2026-11-05')
+  assert.equal(lineDate('- 2026-10-30 · 正文'), '2026-10-30')
+  assert.equal(lineDate('- **2026-10-29 08:40** · 正文'), '2026-10-29')
+  assert.equal(lineDate('| 2026-11-02 周一 | 表格行 |'), '2026-11-02')
+  assert.equal(lineDate('没有日期的普通行'), null)
+  assert.equal(lineAllowed('没有日期的普通行', '2026-05-10'), true, '没日期不冤枉')
+  assert.equal(lineAllowed('- **2026-01-01** · 过去', '2026-05-10'), true)
+  assert.equal(lineAllowed('- **2026-12-31** · 未来', '2026-05-10'), false, '未来行必须挡住')
+  assert.equal(lineAllowed('- **2026-12-31** · 未来', null), true, '不传 beforeDate = 不过滤')
+})
+
+test('enrichResults：长行补成整行，不比 text 长的就不加 full', () => {
+  const cfg = makeCfg()
+  try {
+    const long = `- **2026-11-05** · ${'很长的正文'.repeat(80)}`
+    const short = '- **2026-11-05** · 短的一行'
+    const file = join(cfg.memoryDir, 'x.md')
+    writeFileSync(file, [short, long].join('\n'), 'utf8')
+    // 模拟索引里的块：text 是入库时截到 300 的
+    const results = [
+      { file, line: 2, text: long.trim().slice(0, 300), score: 1 },
+      { file, line: 1, text: short.trim(), score: 0.5 },
+    ]
+    enrichResults(results, null)
+    assert.equal(results[0].full, long.trim(), '命中行超过 300 时返回完整原文')
+    assert.ok(results[0].full.length > 300)
+    assert.equal(results[1].full, undefined, '本来就短，不需要补')
+    assert.equal(results[1].text, short.trim(), 'text 保持原样')
+  } finally { clean(cfg) }
+})
+
+test('enrichResults：原文件缺失 / 行号越界时静默回退', () => {
+  const gone = [{ file: 'C:/nonexistent/never/x.md', line: 3, text: 'abcabc', score: 1 }]
+  assert.doesNotThrow(() => enrichResults(gone, null))
+  assert.equal(gone[0].full, undefined)
+  assert.equal(gone[0].text, 'abcabc')
+
+  const cfg = makeCfg()
+  try {
+    const file = join(cfg.memoryDir, 'y.md')
+    writeFileSync(file, '- **2026-11-05** · 只有一行', 'utf8')
+    const out = [{ file, line: 99, text: 'abcabc', score: 1 }]
+    assert.doesNotThrow(() => enrichResults(out, null))
+    assert.equal(out[0].full, undefined, '行号越界不抛错')
+  } finally { clean(cfg) }
+})
+
+test('enrichResults：邻居行也走时间窗口，未来行不出现', () => {
+  const cfg = makeCfg()
+  try {
+    const file = join(cfg.memoryDir, 'z.md')
+    writeFileSync(file, [
+      '- **2026-01-01** · 过去的邻居',
+      '- **2026-05-10** · 命中的这一行正文',
+      '- **2026-12-31** · 未来的邻居不许出现',
+    ].join('\n'), 'utf8')
+    const results = [{ file, line: 2, text: '命中的这一行正文', score: 1 }]
+    enrichResults(results, '2026-05-10')
+    assert.deepEqual(results[0].context, ['- **2026-01-01** · 过去的邻居'])
+    assert.ok(!JSON.stringify(results[0]).includes('未来的邻居'), '未来行不能从旁路漏回来')
+  } finally { clean(cfg) }
+})
+
+test('enrichResults 不改 text：mentionKey 稳定，提及计数不会错位', () => {
+  const cfg = makeCfg()
+  try {
+    const full = `- **2026-11-05** · ${'内容'.repeat(200)}`
+    const file = join(cfg.memoryDir, 'k.md')
+    writeFileSync(file, full, 'utf8')
+    const results = [{ file, line: 1, text: full.slice(0, 300), score: 1 }]
+    const before = mentionKey(results[0].file, results[0].text)
+    enrichResults(results, null)
+    assert.equal(results[0].text.length, 300, 'text 必须仍是入库时的截断版')
+    assert.equal(mentionKey(results[0].file, results[0].text), before)
+  } finally { clean(cfg) }
+})
+
+test('formatResultLines：模型看到的是 full，不是被截到 80 的 text', () => {
+  const results = [
+    { file: 'C:/m/a.md', line: 7, text: '短文本', full: `完整的一行${'尾巴'.repeat(300)}`, score: 1.2, context: ['上一行的内容'] },
+  ]
+  const lines = formatResultLines(results, () => 3)
+  assert.ok(lines[0].includes('完整的一行'), '应该用 full')
+  assert.ok(!lines[0].includes('短文本'), '不该退回到截断的 text')
+  assert.ok(lines[0].includes('上下文：'), '上下文要出现在给模型的文本里')
+  assert.ok(lines[0].includes('被用上 3 次'))
+  assert.ok(lines[0].includes('[a.md:7]'))
+})
+
+test('readChatChunks 不再把长消息截到 300（只影响 chat_search）', () => {
+  const cfg = makeCfg()
+  try {
+    const d = new Date(Date.now() - 2 * 86400000)
+    const recent = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    const dir = join(cfg.workspace, '对话记录', recent.slice(0, 7))
+    mkdirSync(dir, { recursive: true })
+    const longMsg = '这是一段很长的原话'.repeat(60)
+    writeFileSync(join(dir, `${recent}.md`), `**10:00 [主人]**\n${longMsg}`)
+    const chunks = readChatChunks(cfg.workspace, 7)
+    assert.equal(chunks.length, 1)
+    assert.ok(chunks[0].text.includes(longMsg), '长消息应完整保留，不能再被 300 拦腰砍断')
+  } finally { clean(cfg) }
 })
