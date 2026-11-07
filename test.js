@@ -636,6 +636,19 @@ test('eligibleChunks：时间窗口的唯一实现（两路共用）', () => {
   assert.ok(!f.some((x) => x.date === '2026-12-01'), '12-01 不该在候选里')
 })
 
+test('eligibleChunks：afterDate 只过滤日记块，记忆文件不受影响', () => {
+  const chunks = [
+    { file: 'C:/m/日记/2026-05/2026-05-01.md', text: '五月旧日记', date: '2026-05-01' },
+    { file: 'C:/m/日记/2026-11/2026-11-01.md', text: '十一月新日记', date: '2026-11-01' },
+    { file: 'C:/m/05-自我.md', text: '关系片段', date: '2026-05-01' },
+    { file: 'C:/m/日记/2026-04/2026-04-01.md', text: '没日期' },
+  ]
+  const f = eligibleChunks(chunks, null, '2026-10-01')
+  assert.equal(f.length, 3, '老日记被排除；新日记、记忆文件、没日期的都留')
+  assert.ok(!f.some((x) => x.text === '五月旧日记'), '5 月旧日记该被遗忘线挡掉')
+  assert.ok(f.some((x) => x.text === '关系片段'), '记忆文件（05）不能被遗忘线带走')
+})
+
 // ── 返回层补全（A/B/C）：只改「找到之后给多少」，不碰检索 ──────────
 // 这几条保护的是「索引/排序不变、返回变全」。索引链路上任何一样被动到，
 // chunkKey（md5(text)）就会失效、向量全废，所以 text 必须原样。
