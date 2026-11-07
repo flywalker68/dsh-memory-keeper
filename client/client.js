@@ -46,6 +46,18 @@ window.__ModuleLoader__.load({
 .mk-tab{flex:1;padding:8px 10px;border:0;border-radius:9px;background:transparent;color:var(--dsw-alias-label-secondary,#57606a);font:inherit;font-size:12.5px;cursor:pointer}
 .mk-tab:hover{background:var(--dsw-alias-bg-layer-1,#fff)}
 .mk-tab.on{background:var(--dsw-alias-bg-layer-1,#fff);color:inherit;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.mk-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.mk-stat{border:1px solid var(--dsw-alias-border-l1,rgba(0,0,0,.08));border-radius:12px;padding:12px 14px;background:var(--dsw-alias-bg-layer-1,#fff)}
+.mk-stat .n{font-size:22px;font-weight:650;font-variant-numeric:tabular-nums;line-height:1.15}
+.mk-stat .u{font-size:11px;font-weight:500;color:var(--dsw-alias-label-tertiary,#8b949e);margin-left:2px}
+.mk-stat .k{font-size:12px;color:var(--dsw-alias-label-secondary,#57606a);margin-top:3px}
+.mk-chips{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center}
+.mk-chip{padding:4px 11px;border-radius:999px;border:1px solid var(--dsw-alias-border-l1,rgba(0,0,0,.12));background:transparent;font:inherit;font-size:12px;cursor:pointer;color:var(--dsw-alias-label-secondary,#57606a)}
+.mk-chip:hover{background:var(--dsw-alias-bg-layer-2,#f6f8fa)}
+.mk-chip.on{background:var(--dsw-alias-bg-layer-2,#f6f8fa);color:inherit;border-color:var(--dsw-alias-border-l2,rgba(0,0,0,.28));font-weight:600}
+.mk-badge.who-big{background:rgba(59,91,219,.13);color:#4c6ef5}
+.mk-badge.who-small{background:rgba(214,51,108,.13);color:#d6336c}
+.mk-w100{border-left:3px solid #f59f00;padding-left:12px}
 `
 
     let injected = false
@@ -79,6 +91,8 @@ window.__ModuleLoader__.load({
       const [tunMsg, setTunMsg] = useState('')
       const [imp, setImp] = useState(null)
       const [tab, setTab] = useState('overview')
+      const [impFilter, setImpFilter] = useState('all')
+      const [impQ, setImpQ] = useState('')
 
       const load = () => {
         fetch(API + '/state', { cache: 'no-store' })
@@ -140,10 +154,10 @@ window.__ModuleLoader__.load({
         { id: 'important', label: '重要的事' },
       ]
       const stats = [
-        ['认识', data.daysKnown != null ? `${data.daysKnown} 天（初次 ${data.firstSeen}）` : '—'],
-        ['日记', `${data.diaryTotal} 篇`],
-        ['记忆', `${data.memoryKb} KB`],
-        ['重要记忆', `${data.relations} 条`],
+        ['认识', data.daysKnown != null ? String(data.daysKnown) : '—', '天', data.firstSeen ? `初次 ${data.firstSeen}` : ''],
+        ['日记', String(data.diaryTotal ?? '—'), '篇', ''],
+        ['记忆', String(data.memoryKb ?? '—'), 'KB', ''],
+        ['重要记忆', String(data.relations ?? '—'), '条', ''],
       ]
       const listRows = (items, kind) => {
         if (!items || items.length === 0) return [h('div', { className: 'mk-none', key: 'none' }, kind === 'forget' ? '没有候选，干净。' : '还没有记录。')]
@@ -157,22 +171,43 @@ window.__ModuleLoader__.load({
           h('div', null, x.text || x.line || ''),
         ))
       }
-      // 重要的事：整页列出 05 关系片段（按重要度降序），不是堆在概览里
+      // 重要的事：整页列出 13 关系片段（按重要度降序），支持按署名筛选 + 内容搜索（纯前端过滤）
+      const impAll = (imp && imp.items) || []
+      const impItems = impAll.filter((x) =>
+        (impFilter === 'all' || x.who === impFilter) &&
+        (!impQ.trim() || String(x.text || '').includes(impQ.trim())))
+      const chipOf = (id, label) => h('button', {
+        key: id, type: 'button',
+        className: 'mk-chip' + (impFilter === id ? ' on' : ''),
+        onClick: () => setImpFilter(id),
+      }, label)
       const impPage = h('div', { className: 'mk-card' },
-        h('h3', null, `重要的事${imp ? `（${imp.total} 条）` : ''}`),
+        h('h3', null, `重要的事${imp ? `（${impItems.length}${impItems.length === impAll.length ? '' : ' / ' + impAll.length} 条）` : ''}`),
+        h('div', { className: 'mk-chips' },
+          chipOf('all', `全部 ${impAll.length}`),
+          chipOf('大肥鱼', `大肥鱼 ${impAll.filter((x) => x.who === '大肥鱼').length}`),
+          chipOf('小肥鱼', `小肥鱼 ${impAll.filter((x) => x.who === '小肥鱼').length}`),
+          h('input', {
+            className: 'mk-input',
+            style: { width: 170, padding: '5px 10px', fontSize: 12 },
+            placeholder: '搜内容…',
+            value: impQ,
+            onChange: (e) => setImpQ(e.target.value),
+          }),
+        ),
         h('div', { className: 'mk-muted', style: { marginBottom: 12, fontSize: 12 } },
-          '按〔重要度〕排序；≥60 永不降权，不会被遗忘线带走。要细节时，用条目上的日期调 chat_search 翻那天的原话。'),
+          '按〔重要度〕排序；永不降权。要细节时，用条目上的日期调 chat_search 翻那天的原话。'),
         imp
-          ? (imp.items.length
-            ? imp.items.map((x, i) => h('div', { className: 'mk-item', key: i },
+          ? (impItems.length
+            ? impItems.map((x, i) => h('div', { className: 'mk-item' + (x.weight >= 90 ? ' mk-w100' : ''), key: i },
                 h('div', { className: 'mk-meta' },
                   h('span', { className: 'mk-badge' }, x.date),
                   h('span', { className: 'mk-badge' }, `重要度 ${x.weight}`),
-                  x.who ? h('span', { className: 'mk-badge' }, x.who) : (x.age != null ? h('span', null, x.age === 0 ? '今天' : `${x.age} 天前`) : null),
+                  x.who ? h('span', { className: 'mk-badge ' + (x.who === '大肥鱼' ? 'who-big' : 'who-small') }, x.who) : (x.age != null ? h('span', null, x.age === 0 ? '今天' : `${x.age} 天前`) : null),
                 ),
                 h('div', { style: { lineHeight: 1.75 } }, x.text),
               ))
-            : h('div', { className: 'mk-none' }, '还没有关系片段。'))
+            : h('div', { className: 'mk-none' }, impQ || impFilter !== 'all' ? '没有匹配的条目。' : '还没有关系片段。'))
           : h('div', { className: 'mk-muted' }, '加载中…'),
       )
 
@@ -199,9 +234,12 @@ window.__ModuleLoader__.load({
           ),
           tab === 'important' ? impPage : null,
           tab === 'overview' ? h(React.Fragment, null,
-          h('div', { className: 'mk-card' },
-            h('h3', null, '统计'),
-            ...stats.map(([k, v], i) => h('div', { className: 'mk-row', key: i }, h('span', { className: 'mk-k' }, k), h('span', { className: 'mk-v' }, v))),
+          h('div', { className: 'mk-stats' },
+            ...stats.map(([k, n, u, sub], i) => h('div', { className: 'mk-stat', key: i },
+              h('div', null, h('span', { className: 'n' }, n), h('span', { className: 'u' }, u)),
+              h('div', { className: 'k' }, k),
+              sub ? h('div', { className: 'u', style: { marginTop: 2, marginLeft: 0 } }, sub) : null,
+            )),
           ),
           h('div', { className: 'mk-card' },
             h('h3', null, '返回层（省 token）'),
