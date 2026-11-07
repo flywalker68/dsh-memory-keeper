@@ -168,7 +168,7 @@ window.__ModuleLoader__.load({
                 h('div', { className: 'mk-meta' },
                   h('span', { className: 'mk-badge' }, x.date),
                   h('span', { className: 'mk-badge' }, `重要度 ${x.weight}`),
-                  h('span', null, x.age === 0 ? '今天' : `${x.age} 天前`),
+                  x.who ? h('span', { className: 'mk-badge' }, x.who) : (x.age != null ? h('span', null, x.age === 0 ? '今天' : `${x.age} 天前`) : null),
                 ),
                 h('div', { style: { lineHeight: 1.75 } }, x.text),
               ))
