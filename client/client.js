@@ -42,6 +42,10 @@ window.__ModuleLoader__.load({
 .mk-warn{color:#bf8700}
 .mk-bad{color:#cf222e}
 .mk-none{color:var(--dsw-alias-label-tertiary,#8b949e);padding:6px 0}
+.mk-tabs{display:flex;gap:4px;margin:0 0 12px;padding:4px;border-radius:12px;background:var(--dsw-alias-bg-layer-2,#f6f8fa);border:1px solid var(--dsw-alias-border-l1,rgba(0,0,0,.08))}
+.mk-tab{flex:1;padding:8px 10px;border:0;border-radius:9px;background:transparent;color:var(--dsw-alias-label-secondary,#57606a);font:inherit;font-size:12.5px;cursor:pointer}
+.mk-tab:hover{background:var(--dsw-alias-bg-layer-1,#fff)}
+.mk-tab.on{background:var(--dsw-alias-bg-layer-1,#fff);color:inherit;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.06)}
 `
 
     let injected = false
@@ -74,6 +78,7 @@ window.__ModuleLoader__.load({
       const [tun, setTun] = useState(null)
       const [tunMsg, setTunMsg] = useState('')
       const [imp, setImp] = useState(null)
+      const [tab, setTab] = useState('overview')
 
       const load = () => {
         fetch(API + '/state', { cache: 'no-store' })
@@ -130,6 +135,10 @@ window.__ModuleLoader__.load({
       if (err) return h('div', { className: 'mk-root' }, h('div', { className: 'mk-wrap' }, h('div', { className: 'mk-card' }, err)))
       if (!data) return h('div', { className: 'mk-root' }, h('div', { className: 'mk-wrap mk-muted' }, '加载中…'))
 
+      const TABS = [
+        { id: 'overview', label: '概览' },
+        { id: 'important', label: '重要的事' },
+      ]
       const stats = [
         ['认识', data.daysKnown != null ? `${data.daysKnown} 天（初次 ${data.firstSeen}）` : '—'],
         ['日记', `${data.diaryTotal} 篇`],
@@ -148,6 +157,24 @@ window.__ModuleLoader__.load({
           h('div', null, x.text || x.line || ''),
         ))
       }
+      // 重要的事：整页列出 05 关系片段（按重要度降序），不是堆在概览里
+      const impPage = h('div', { className: 'mk-card' },
+        h('h3', null, `重要的事${imp ? `（${imp.total} 条）` : ''}`),
+        h('div', { className: 'mk-muted', style: { marginBottom: 12, fontSize: 12 } },
+          '按〔重要度〕排序；≥60 永不降权，不会被遗忘线带走。要细节时，用条目上的日期调 chat_search 翻那天的原话。'),
+        imp
+          ? (imp.items.length
+            ? imp.items.map((x, i) => h('div', { className: 'mk-item', key: i },
+                h('div', { className: 'mk-meta' },
+                  h('span', { className: 'mk-badge' }, x.date),
+                  h('span', { className: 'mk-badge' }, `重要度 ${x.weight}`),
+                  h('span', null, x.age === 0 ? '今天' : `${x.age} 天前`),
+                ),
+                h('div', { style: { lineHeight: 1.75 } }, x.text),
+              ))
+            : h('div', { className: 'mk-none' }, '还没有关系片段。'))
+          : h('div', { className: 'mk-muted' }, '加载中…'),
+      )
 
       return h('div', { className: 'mk-root' },
         h('div', { className: 'mk-wrap' },
@@ -163,26 +190,18 @@ window.__ModuleLoader__.load({
               h('button', { className: 'mk-btn', onClick: openDiary, title: '打开日记目录' }, '📂 日记目录'),
             ),
           ),
+          h('div', { className: 'mk-tabs', role: 'tablist' },
+            ...TABS.map((t) => h('button', {
+              key: t.id, type: 'button', role: 'tab',
+              className: 'mk-tab' + (tab === t.id ? ' on' : ''),
+              onClick: () => setTab(t.id),
+            }, t.label)),
+          ),
+          tab === 'important' ? impPage : null,
+          tab === 'overview' ? h(React.Fragment, null,
           h('div', { className: 'mk-card' },
             h('h3', null, '统计'),
             ...stats.map(([k, v], i) => h('div', { className: 'mk-row', key: i }, h('span', { className: 'mk-k' }, k), h('span', { className: 'mk-v' }, v))),
-          ),
-          h('div', { className: 'mk-card' },
-            h('h3', null, `重要的事${imp ? `（${imp.total} 条）` : ''}`),
-            h('div', { className: 'mk-muted', style: { marginBottom: 10, fontSize: 12 } },
-              '按〔重要度〕排序；≥60 永不降权。要细节时，用条目上的日期调 chat_search 翻那天的原话。'),
-            imp
-              ? (imp.items.length
-                ? imp.items.slice(0, 10).map((x, i) => h('div', { className: 'mk-item', key: i },
-                    h('div', { className: 'mk-meta' },
-                      h('span', { className: 'mk-badge' }, x.date),
-                      h('span', { className: 'mk-badge' }, `重要度 ${x.weight}`),
-                      x.age != null ? h('span', null, x.age === 0 ? '今天' : `${x.age} 天前`) : null,
-                    ),
-                    h('div', null, String(x.text || '').length > 120 ? String(x.text).slice(0, 120) + '…' : x.text),
-                  ))
-                : h('div', { className: 'mk-none' }, '还没有关系片段。'))
-              : h('div', { className: 'mk-muted' }, '加载中…'),
           ),
           h('div', { className: 'mk-card' },
             h('h3', null, '返回层（省 token）'),
@@ -245,6 +264,7 @@ window.__ModuleLoader__.load({
             (data.notes || []).length === 0 ? h('div', { className: 'mk-none' }, '（空）')
               : (data.notes || []).map((n, i) => h('div', { className: 'mk-item', key: i }, n)),
           ),
+          ) : null,
         ),
       )
     }
