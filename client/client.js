@@ -73,6 +73,7 @@ window.__ModuleLoader__.load({
       const [at, setAt] = useState(0)
       const [tun, setTun] = useState(null)
       const [tunMsg, setTunMsg] = useState('')
+      const [imp, setImp] = useState(null)
 
       const load = () => {
         fetch(API + '/state', { cache: 'no-store' })
@@ -88,6 +89,12 @@ window.__ModuleLoader__.load({
           .then(j => { if (j && j.ok) setTun(j) })
           .catch(() => { /* 面板 API 没起来就静默，不影响主功能 */ })
       }
+      const loadImportant = () => {
+        fetch(API + '/important', { cache: 'no-store' })
+          .then(r => r.json())
+          .then(j => { if (j && j.ok) setImp(j) })
+          .catch(() => { /* 同上，静默 */ })
+      }
       const saveTun = (patch) => {
         fetch(API + '/tunables', {
           method: 'POST',
@@ -101,7 +108,7 @@ window.__ModuleLoader__.load({
           })
           .catch(e => setTunMsg('保存失败：' + e.message))
       }
-      useEffect(() => { load(); loadTun() }, [])
+      useEffect(() => { load(); loadTun(); loadImportant() }, [])
 
       const doSearch = () => {
         const query = q.trim()
@@ -159,6 +166,23 @@ window.__ModuleLoader__.load({
           h('div', { className: 'mk-card' },
             h('h3', null, '统计'),
             ...stats.map(([k, v], i) => h('div', { className: 'mk-row', key: i }, h('span', { className: 'mk-k' }, k), h('span', { className: 'mk-v' }, v))),
+          ),
+          h('div', { className: 'mk-card' },
+            h('h3', null, `重要的事${imp ? `（${imp.total} 条）` : ''}`),
+            h('div', { className: 'mk-muted', style: { marginBottom: 10, fontSize: 12 } },
+              '按〔重要度〕排序；≥60 永不降权。要细节时，用条目上的日期调 chat_search 翻那天的原话。'),
+            imp
+              ? (imp.items.length
+                ? imp.items.slice(0, 10).map((x, i) => h('div', { className: 'mk-item', key: i },
+                    h('div', { className: 'mk-meta' },
+                      h('span', { className: 'mk-badge' }, x.date),
+                      h('span', { className: 'mk-badge' }, `重要度 ${x.weight}`),
+                      x.age != null ? h('span', null, x.age === 0 ? '今天' : `${x.age} 天前`) : null,
+                    ),
+                    h('div', null, String(x.text || '').length > 120 ? String(x.text).slice(0, 120) + '…' : x.text),
+                  ))
+                : h('div', { className: 'mk-none' }, '还没有关系片段。'))
+              : h('div', { className: 'mk-muted' }, '加载中…'),
           ),
           h('div', { className: 'mk-card' },
             h('h3', null, '返回层（省 token）'),
