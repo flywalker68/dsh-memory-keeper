@@ -9,7 +9,7 @@ import { join } from 'node:path'
 import {
   localDate, dayShift, scanDiaries, dirSizeKb, parseSchedule,
   scanHandnotes, scanStale, buildStatus, backupAndWrite, scanFactConflicts, scanNotes, oldestRelation,
-  pruneBackups,
+  pruneBackups, parseRelations,
 } from './lib/state.js'
 import { grams, buildIndex, searchMemory, loadOrBuild, bumpMentions, mentionCount, mentionKey, bumpByUserText, chatChunks, readChatChunks, markSeen, resolveQueryDate, readChatDay, shiftDate, eligibleChunks, enrichResults, formatResultLines, lineDate, lineAllowed, clampTunables } from './lib/search.js'
 
@@ -86,6 +86,20 @@ test('scanHandnotes 找出超过 3 天的条目', () => {
     assert.equal(r.stale.length, 1)
     assert.equal(r.stale[0].date, '2026-10-21')
   } finally { clean(cfg) }
+})
+
+test('parseRelations 两种写法都认（- **日期** · 正文 / - **日期 · 标题**：正文）', () => {
+  const list = parseRelations([
+    '- **2026-10-17** · 第一种写法',
+    '- **2026-10-29 · 他道歉了**：第二种写法',
+    '- 普通行不算',
+    '## 标题也不算',
+  ].join('\n'))
+  assert.equal(list.length, 2)
+  assert.equal(list[0].date, '2026-10-17')
+  assert.equal(list[1].date, '2026-10-29')
+  assert.ok(list[1].body.includes('他道歉了'))
+  assert.ok(list[1].body.includes('第二种写法'))
 })
 
 test('scanStale 半衰期只报不删', () => {
