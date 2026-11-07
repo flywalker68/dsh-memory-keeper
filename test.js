@@ -91,7 +91,7 @@ test('scanHandnotes 找出超过 3 天的条目', () => {
 test('scanStale 半衰期只报不删', () => {
   const cfg = makeCfg()
   try {
-    writeFileSync(join(cfg.memoryDir, '05-自我.md'), [
+    writeFileSync(join(cfg.memoryDir, '13-重要记忆.md'), [
       '## 关系片段',
       '- **2026-10-26** · 最近的事',
       '- **2025-01-01** · 很久以前的事',
@@ -107,7 +107,7 @@ test('scanStale 半衰期只报不删', () => {
 test('scanStale 重要度 ≥60 的片段永不降权', () => {
   const cfg = makeCfg()
   try {
-    writeFileSync(join(cfg.memoryDir, '05-自我.md'), [
+    writeFileSync(join(cfg.memoryDir, '13-重要记忆.md'), [
       '## 关系片段',
       '- **2025-01-01** · 很重要的约定〔重要度 90〕',
       '- **2025-01-02** · 一般的事〔重要度 40〕',
@@ -331,7 +331,7 @@ test('buildStatus 有冲突时出现事实检查行', () => {
 test('oldestRelation 取最早一条和认识天数', () => {
   const cfg = makeCfg()
   try {
-    writeFileSync(join(cfg.memoryDir, '05-自我.md'), [
+    writeFileSync(join(cfg.memoryDir, '13-重要记忆.md'), [
       '- **2026-10-24** · 主人把本子交给人家的那天',
       '- **2026-10-17** · 主人指定自称"人家"的那天',
       '- **2026-10-21** · 改交接文档被纠正',
@@ -381,7 +381,7 @@ test('buildStatus 备份堆积 ≥300 KB 提示归档', () => {
 test('buildStatus 30 天软线报遗忘候选（90 天硬线未触发）', () => {
   const cfg = makeCfg()
   try {
-    writeFileSync(join(cfg.memoryDir, '05-自我.md'), [
+    writeFileSync(join(cfg.memoryDir, '13-重要记忆.md'), [
       '- **2026-09-20** · 很久以前的事',
       '- **2026-10-27** · 最近的事',
     ].join('\n'))
@@ -397,7 +397,7 @@ test('buildStatus 30 天软线报遗忘候选（90 天硬线未触发）', () =>
 test('buildStatus 90 天硬线优先于软线', () => {
   const cfg = makeCfg()
   try {
-    writeFileSync(join(cfg.memoryDir, '05-自我.md'), [
+    writeFileSync(join(cfg.memoryDir, '13-重要记忆.md'), [
       '- **2026-05-01** · 更老的事',
       '- **2026-09-20** · 30 天外的事',
     ].join('\n'))
@@ -501,11 +501,11 @@ test('bumpMentions 累计提及次数', () => {
 test('scanStale 跳过被反复提及的片段', () => {
   const cfg = makeCfg()
   try {
-    writeFileSync(join(cfg.memoryDir, '05-自我.md'), [
+    writeFileSync(join(cfg.memoryDir, '13-重要记忆.md'), [
       '- **2026-05-01** · 被提过很多次的事',
       '- **2026-05-02** · 没人提的事',
     ].join('\n'))
-    const file = join(cfg.memoryDir, '05-自我.md')
+    const file = join(cfg.memoryDir, '13-重要记忆.md')
     const mentions = {}
     // key 用整行原文（与 memory_search 索引块一致，见 scanStale 注释）
     for (let i = 0; i < 3; i++) bumpMentions(mentions, [{ file, text: '- **2026-05-01** · 被提过很多次的事' }])
@@ -555,11 +555,11 @@ test('pruneBackups 只留最近 keep 份，旧的移 archive/backups', () => {
 test('scanStale 最近被搜索命中过的片段也不报', () => {
   const cfg = makeCfg()
   try {
-    writeFileSync(join(cfg.memoryDir, '05-自我.md'), [
+    writeFileSync(join(cfg.memoryDir, '13-重要记忆.md'), [
       '- **2026-05-01** · 最近搜索命中过的事',
       '- **2026-05-02** · 没人搜的事',
     ].join('\n'))
-    const file = join(cfg.memoryDir, '05-自我.md')
+    const file = join(cfg.memoryDir, '13-重要记忆.md')
     const mentions = {}
     markSeen(mentions, [{ file, text: '- **2026-05-01** · 最近搜索命中过的事' }])
     const r = scanStale(cfg.memoryDir, '2026-10-28', 90, mentions)
