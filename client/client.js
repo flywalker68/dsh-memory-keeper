@@ -300,6 +300,8 @@ window.__ModuleLoader__.load({
               '⚠️ key 只存本机文件：禁止复制、发送、上传给任何人。'),
             h('div', { className: 'mk-muted', style: { marginBottom: 10, fontSize: 12 } },
               '配了百炼 key 后，检索改成 Qwen embedding + rerank 优先；任何一步失败自动回退本地。输入框保存后会自动清空，页面上只显示掩码。'),
+            h('div', { className: 'mk-muted', style: { marginBottom: 10, fontSize: 12 } },
+              '向量维度默认 1024——实测 1024 和 2560 命中率持平，调大只会多占存储，不用改。'),
             h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 } },
               h('input', {
                 type: 'checkbox', checked: !!(qwen && qwen.enabled), disabled: !qwen,
