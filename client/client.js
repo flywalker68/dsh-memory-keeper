@@ -92,6 +92,9 @@ window.__ModuleLoader__.load({
       const [imp, setImp] = useState(null)
       const [tab, setTab] = useState('overview')
       const [impFilter, setImpFilter] = useState('all')
+      const [qwen, setQwen] = useState(null)
+      const [keyInput, setKeyInput] = useState('')
+      const [qwenMsg, setQwenMsg] = useState('')
       const [impQ, setImpQ] = useState('')
 
       const load = () => {
@@ -127,7 +130,27 @@ window.__ModuleLoader__.load({
           })
           .catch(e => setTunMsg('保存失败：' + e.message))
       }
-      useEffect(() => { load(); loadTun(); loadImportant() }, [])
+      useEffect(() => { load(); loadTun(); loadImportant(); loadQwen() }, [])
+
+      const loadQwen = () => {
+        fetch(API + '/qwen', { cache: 'no-store' })
+          .then(r => r.json())
+          .then(j => { if (j && j.ok) setQwen(j) })
+          .catch(() => { /* 静默 */ })
+      }
+      const saveQwen = (patch) => {
+        fetch(API + '/qwen', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(patch),
+        })
+          .then(r => r.json())
+          .then(j => {
+            if (j && j.ok) { setQwen(j); setKeyInput(''); setQwenMsg('已保存，下次检索生效') }
+            else setQwenMsg('保存失败：' + ((j && j.error) || '未知错误'))
+          })
+          .catch(e => setQwenMsg('保存失败：' + e.message))
+      }
 
       const doSearch = () => {
         const query = q.trim()
@@ -270,6 +293,36 @@ window.__ModuleLoader__.load({
             h('div', { className: 'mk-muted', style: { marginTop: 10, fontSize: 12 } },
               '默认 1 行 / 400 字：一次检索约多 1.3K tokens（≈¥0.003）。嫌贵把上下文调 0，正文补全仍保留。'),
             tunMsg ? h('div', { className: 'mk-muted', style: { marginTop: 6, fontSize: 12 } }, tunMsg) : null,
+          ),
+          h('div', { className: 'mk-card' },
+            h('h3', null, 'Qwen 加速（可选）'),
+            h('div', { className: 'mk-muted', style: { marginBottom: 10, fontSize: 12 } },
+              '配了百炼 key 后，检索改成 Qwen embedding + rerank 优先；任何一步失败自动回退本地。key 只存本机，不会显示完整值。'),
+            h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 } },
+              h('input', {
+                type: 'checkbox', checked: !!(qwen && qwen.enabled), disabled: !qwen,
+                onChange: (e) => saveQwen({ qwenEnabled: e.target.checked }),
+              }),
+              h('span', null, qwen && qwen.enabled ? '已启用' : '已关闭（走本地 bge-small）'),
+            ),
+            h('div', { className: 'mk-muted', style: { fontSize: 12, marginBottom: 6 } },
+              qwen && qwen.hasKey ? ('已保存 key：' + qwen.keyMasked) : '还没有填 key（未配置时不会调用 Qwen）'),
+            h('div', { style: { display: 'flex', gap: 8 } },
+              h('input', {
+                className: 'mk-input', type: 'password', placeholder: 'sk-...（留空不覆盖）',
+                value: keyInput, onChange: (e) => setKeyInput(e.target.value), style: { flex: 1 },
+              }),
+              h('button', { className: 'mk-btn', disabled: !keyInput.trim(), onClick: () => saveQwen({ qwenApiKey: keyInput.trim() }) }, '保存 key'),
+            ),
+            h('div', { style: { display: 'flex', gap: 16, marginTop: 10, fontSize: 13 } },
+              h('label', { style: { display: 'flex', alignItems: 'center', gap: 4 } },
+                h('input', { type: 'checkbox', checked: !!(qwen && qwen.embedding), disabled: !qwen, onChange: (e) => saveQwen({ qwenEmbedding: e.target.checked }) }),
+                ' 用 Qwen 做向量'),
+              h('label', { style: { display: 'flex', alignItems: 'center', gap: 4 } },
+                h('input', { type: 'checkbox', checked: !!(qwen && qwen.rerank), disabled: !qwen, onChange: (e) => saveQwen({ qwenRerank: e.target.checked }) }),
+                ' 用 Qwen 重排'),
+            ),
+            qwenMsg ? h('div', { className: 'mk-muted', style: { marginTop: 8, fontSize: 12 } }, qwenMsg) : null,
           ),
           h('div', { className: 'mk-card' },
             h('h3', null, '搜索记忆'),
