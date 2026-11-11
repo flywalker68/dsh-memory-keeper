@@ -21,7 +21,7 @@
     config:
       workspace: 'D:\你的\工作区'
   ```
-- **不需要 API key**；首次检索会下 24 MB 模型，或把 `embeddingEnabled` 设 `false` 跳过
+- **默认不需要 API key**（本地 bge-small）；可选配百炼 Qwen embedding + rerank，失败自动回退本地。首次检索会下 24 MB 模型，或把 `embeddingEnabled` 设 `false` 跳过
 
 ## 如果要拿它跑评测基准
 
@@ -102,6 +102,27 @@
 | **侧栏面板** | 在 Web UI 里看记忆库全貌 |
 
 > **插件只管「能力」。** 每天该读什么、该记什么、写完怎么检查、什么时候清理——这些规则不在代码里，见 [运行规则参考](docs/运行规则.md)。不配这一层，装上也是空转。
+
+### 可选：Qwen 加速（API 优先、本地兜底）
+
+默认纯本地（bge-small，免费、离线）。如果配了百炼 API key，检索会改成「Qwen embedding + Qwen rerank」优先，**任何一步失败都自动回退本地**：
+
+```yaml
+- id: memory-keeper
+  config:
+    workspace: 'D:\你的\工作区'
+    qwenApiKey: 'sk-...'      # 百炼 key；也可用环境变量 DASHSCOPE_API_KEY
+    qwenEmbedding: true       # 检索向量用 Qwen（2560 维）
+    qwenRerank: true          # RRF 之后用 Qwen 重排
+    qwenTimeoutMs: 5000       # 单次超时；超时即回退
+```
+
+**实测收益**（714 题、块匹配口径）：本地 91.7% → Qwen embedding 93.7% → 再加 rerank **97.7%**。
+
+**代价**：
+- 首次要把全部块编码成 Qwen 向量（几百块约半分钟，存 `memory-vectors-qwen.json`，之后增量）
+- 每次检索多一次 query embedding + rerank 调用（约 300ms；按量计费，日常几次检索约几分钱）
+- 断网/失败会自动回退；连续失败 3 次冷却 5 分钟，期间直接用本地
 
 ## 安装
 
