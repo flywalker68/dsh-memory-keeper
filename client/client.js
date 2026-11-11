@@ -296,8 +296,10 @@ window.__ModuleLoader__.load({
           ),
           h('div', { className: 'mk-card' },
             h('h3', null, 'Qwen 加速（可选）'),
+            h('div', { style: { marginBottom: 10, fontSize: 12, color: '#c0392b', fontWeight: 600 } },
+              '⚠️ key 只存本机文件：禁止复制、发送、上传给任何人。'),
             h('div', { className: 'mk-muted', style: { marginBottom: 10, fontSize: 12 } },
-              '配了百炼 key 后，检索改成 Qwen embedding + rerank 优先；任何一步失败自动回退本地。key 只存本机，不会显示完整值。'),
+              '配了百炼 key 后，检索改成 Qwen embedding + rerank 优先；任何一步失败自动回退本地。输入框保存后会自动清空，页面上只显示掩码。'),
             h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 } },
               h('input', {
                 type: 'checkbox', checked: !!(qwen && qwen.enabled), disabled: !qwen,
@@ -313,6 +315,13 @@ window.__ModuleLoader__.load({
                 value: keyInput, onChange: (e) => setKeyInput(e.target.value), style: { flex: 1 },
               }),
               h('button', { className: 'mk-btn', disabled: !keyInput.trim(), onClick: () => saveQwen({ qwenApiKey: keyInput.trim() }) }, '保存 key'),
+              qwen && qwen.hasKey
+                ? h('button', {
+                  className: 'mk-btn',
+                  style: { color: '#c0392b' },
+                  onClick: () => { if (window.confirm('删除本地 key 文件？删除后 Qwen 自动关闭，改走本地。')) saveQwen({ action: 'delete' }) },
+                }, '删除 key')
+                : null,
             ),
             h('div', { style: { display: 'flex', gap: 16, marginTop: 10, fontSize: 13 } },
               h('label', { style: { display: 'flex', alignItems: 'center', gap: 4 } },
