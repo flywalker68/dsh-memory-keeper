@@ -823,3 +823,11 @@ test('isCasualQuery：情绪闲聊不翻旧账，问句/记忆触发词不拦', 
   assert.equal(isCasualQuery('我喜欢吃什么'), false)
   assert.equal(isCasualQuery('今天吃了什么'), false)
 })
+
+test('package.json：无 BOM 且是合法 JSON（DSH 会直接解析它，坏一个字节插件就静默不加载）', () => {
+  const raw = readFileSync(new URL('./package.json', import.meta.url), 'utf8')
+  assert.notEqual(raw.charCodeAt(0), 0xfeff, 'package.json 有 BOM——DSH 会报 "not valid JSON" 并静默跳过插件')
+  const p = JSON.parse(raw)
+  assert.ok(p.name && p.version && p.main, 'name/version/main 必须存在')
+  assert.ok(p.exports && p.exports['.'], 'exports["."] 必须指向入口')
+})
