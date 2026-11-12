@@ -44,8 +44,10 @@
 
 ## 开始使用
 
-> ⚠️ **需要一个本地向量模型**：`Xenova/bge-small-zh-v1.5`（约 24 MB，int8）。首次检索时自动下载到插件的 `models/`，默认走 hf-mirror。
-> **不想下载也行**：配置里把 `embeddingEnabled` 设为 `false`，就退化成纯字面检索——搜得笨一点，但零下载。
+> **三种向量方案，按环境挑**：
+> - **默认（本地）**：`Xenova/bge-small-zh-v1.5`（约 24 MB，int8），首次检索自动下载到插件的 `models/`，之后离线可用
+> - **可选（云端）**：配一个百炼 API key 就用 Qwen embedding + rerank，更准（实测 91.7% → 97.7%）；失败/超时/断网自动回退本地，见下面「可选：Qwen 加速」
+> - **都不要**：配 `embeddingEnabled: false` → 纯字面检索，零下载、零 API
 
 ## 它解决什么问题
 
@@ -82,7 +84,7 @@
 
 ### 3. 用起来（检索 → 回答）
 
-- **检索**：`memory_search(query, top=10, beforeDate)`——词面 bigram（IDF 加权）+ 向量（bge-small）+ RRF 融合；命中块回原文件补整行 `full` 和前后各一行 `context`
+- **检索**：`memory_search(query, top=10, beforeDate)`——词面 BM25 + 向量（本地 bge-small，或配了 key 时用 Qwen）+ RRF 融合 + 可选 Qwen rerank；命中块回原文件补整行 `full` 和前后各一行 `context`
 - **状态卡**：组装 system prompt 时注入（日记进度、日程、体积、半衰期候选、人设漂移）；体积只在跨 200 / 500 KB 阈值时才报，平时不显示（免得每写一个文件就破缓存）
 - **压缩后**：`compaction/summary` 事件触发，把被压掉的最近 10 轮原话挂成 system prompt 的一段（静态快照，维持到下次压缩）
 - **加固**：真用上某段记忆时 `memory_touch(file, line)` 手动 +1；提过 3 次不再进遗忘候选
