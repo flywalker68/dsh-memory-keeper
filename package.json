@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "dsh-memory-keeper",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "长期记忆守门员：状态卡、memory_check / memory_search / persona_edit 工具、回忆强化、侧栏记忆面板",
   "type": "module",
   "main": "lib/index.js",
