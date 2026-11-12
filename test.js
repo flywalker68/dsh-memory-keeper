@@ -812,3 +812,14 @@ test('memory_search 的补全顺序：tun 与 enrichResults 都在 lines 之前'
   assert.ok(enrich > 0 && lines > enrich, 'enrichResults 必须在拼 lines 之前，否则渲染的是旧内容')
   assert.ok(decl < lines, 'tun 在 lines 之前声明')
 })
+
+test('isCasualQuery：情绪闲聊不翻旧账，问句/记忆触发词不拦', async () => {
+  const { isCasualQuery } = await import('./lib/index.js')
+  assert.ok(isCasualQuery('今天好累啊'), '情绪陈述该拦')
+  assert.ok(isCasualQuery('累死了'))
+  assert.ok(isCasualQuery('好烦'))
+  assert.equal(isCasualQuery('上次说的那个餐厅'), false, '记忆触发词不该拦')
+  assert.equal(isCasualQuery('你记得我生日吗'), false)
+  assert.equal(isCasualQuery('我喜欢吃什么'), false)
+  assert.equal(isCasualQuery('今天吃了什么'), false)
+})
